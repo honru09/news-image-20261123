@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""news-image-20261123 entrypoint.
+"""news-image-20261123 entrypoint (round 4).
 
 Copies the pre-built infographic entry.png (1024x1024, one page summing up
 the world news of Monday 23 November 2026) to <output dir>/entry.png.
 
 Deterministic: the output is a byte-for-byte copy of the committed image,
 so repeated runs always produce identical bytes. No network, no randomness,
-no clock reads.
+no clock reads. Standard library only.
 """
 
 import os
@@ -51,10 +51,18 @@ def main():
         return fail("entry.png has wrong size %dx%d, expected %dx%d"
                     % (width, height, EXPECTED_WIDTH, EXPECTED_HEIGHT))
 
+    # The file must be a whole PNG, not a truncated one: the last 12 bytes
+    # must be the IEND chunk (4-byte zero length, "IEND", 4-byte CRC).
+    if len(data) < 12 or data[-12:-8] != b"\x00\x00\x00\x00" \
+            or data[-8:-4] != b"IEND":
+        return fail("entry.png is not a complete PNG file "
+                    "(missing IEND trailer chunk; file may be truncated)")
+
     os.makedirs(target_dir, exist_ok=True)
 
     with open(target, "wb") as handle:
         handle.write(data)
+    os.chmod(target, 0o644)
 
     return 0
 
